@@ -3,16 +3,30 @@
 interface UploadProgressProps {
   progress: number; // 0 to 100
   status: 'idle' | 'compressing' | 'uploading' | 'success' | 'error';
+  currentFileIndex?: number;
+  totalFiles?: number;
   errorMessage?: string;
 }
 
-export default function UploadProgress({ progress, status, errorMessage }: UploadProgressProps) {
+export default function UploadProgress({
+  progress,
+  status,
+  currentFileIndex = 0,
+  totalFiles = 0,
+  errorMessage,
+}: UploadProgressProps) {
   if (status === 'idle') return null;
 
+  const fileLabel = totalFiles > 1 && currentFileIndex > 0
+    ? ` ${currentFileIndex} de ${totalFiles}`
+    : '';
+
   const statusLabels: Record<string, string> = {
-    compressing: 'Comprimindo imagem...',
-    uploading: 'Enviando...',
-    success: 'Enviado com sucesso!',
+    compressing: `Comprimindo${fileLabel}...`,
+    uploading: `Enviando${fileLabel}...`,
+    success: totalFiles > 1
+      ? `${totalFiles} arquivos enviados com sucesso!`
+      : 'Enviado com sucesso!',
     error: errorMessage || 'Erro ao enviar.',
   };
 

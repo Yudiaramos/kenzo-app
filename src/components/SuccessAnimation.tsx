@@ -1,11 +1,18 @@
 'use client';
 
 interface SuccessAnimationProps {
+  uploadedCount?: number;
   onSendMore: () => void;
   onGoHome: () => void;
 }
 
-export default function SuccessAnimation({ onSendMore, onGoHome }: SuccessAnimationProps) {
+export default function SuccessAnimation({
+  uploadedCount = 1,
+  onSendMore,
+  onGoHome,
+}: SuccessAnimationProps) {
+  const isMultiple = uploadedCount > 1;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/90 backdrop-blur-sm animate-fade-in">
       <div className="text-center px-6 animate-scale-in">
@@ -39,10 +46,12 @@ export default function SuccessAnimation({ onSendMore, onGoHome }: SuccessAnimat
         </div>
 
         <h2 className="font-serif text-2xl text-[#2a2a2a] mb-2">
-          Enviado com sucesso!
+          {isMultiple ? 'Arquivos enviados com sucesso!' : 'Enviado com sucesso!'}
         </h2>
         <p className="text-[#777] mb-8">
-          Obrigado por compartilhar esse momento especial.
+          {isMultiple
+            ? `Obrigado por compartilhar ${uploadedCount} momentos especiais.`
+            : 'Obrigado por compartilhar esse momento especial.'}
         </p>
 
         <div className="flex flex-col gap-3">
@@ -52,7 +61,7 @@ export default function SuccessAnimation({ onSendMore, onGoHome }: SuccessAnimat
                        shadow-md shadow-[#c9a84c]/25 hover:bg-[#b8963e] transition-all
                        active:scale-[0.98]"
           >
-            Enviar mais fotos
+            Enviar mais arquivos
           </button>
           <button
             onClick={onGoHome}

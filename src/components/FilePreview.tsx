@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo } from 'react';
 import { formatFileSize } from '@/config/wedding';
 
 interface FilePreviewProps {
@@ -10,21 +11,26 @@ interface FilePreviewProps {
 export default function FilePreview({ file, onRemove }: FilePreviewProps) {
   const isImage = file.type.startsWith('image/');
   const isVideo = file.type.startsWith('video/');
-  const url = URL.createObjectURL(file);
+  const url = useMemo(() => URL.createObjectURL(file), [file]);
+
+  useEffect(() => {
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [url]);
 
   return (
     <div className="relative rounded-2xl overflow-hidden bg-[#f8f5f0] border border-[#e0d5c1] shadow-sm">
       <div className="aspect-[4/3] relative">
-        {isImage && (
+        {isImage && url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={url}
             alt="Preview"
             className="w-full h-full object-cover"
-            onLoad={() => URL.revokeObjectURL(url)}
           />
         )}
-        {isVideo && (
+        {isVideo && url && (
           <video
             src={url}
             className="w-full h-full object-cover"
