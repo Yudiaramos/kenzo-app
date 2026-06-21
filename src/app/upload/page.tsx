@@ -6,6 +6,7 @@ import Link from 'next/link';
 import imageCompression from 'browser-image-compression';
 import { Stage } from '@/types';
 import { getCurrentStage } from '@/config/wedding';
+import { getSupabase } from '@/lib/supabase/client';
 import StageSelector from '@/components/StageSelector';
 import FilePreview from '@/components/FilePreview';
 import UploadProgress from '@/components/UploadProgress';
@@ -35,6 +36,7 @@ function getFileValidationError(file: File): string | null {
 
 export default function UploadPage() {
   const router = useRouter();
+  const supabase = getSupabase();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -139,46 +141,45 @@ export default function UploadPage() {
     }
 
     setUploadStatus('uploading');
-    setUploadProgress(0);
+    setUploadProgress(15);
     setCurrentFileIndex(index + 1);
+    const isImage = fileToUpload.type.startsWith('image/');
+    const mediaType = isImage ? 'image' : 'video';
+    const ext = file.name.split('.').pop()?.toLowerCase() || (isImage ? 'jpg' : 'mp4');
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    const filePath = `uploads/${selectedStage}/${timestamp}-${random}.${ext}`;
 
-    const formData = new FormData();
-    formData.append('file', fileToUpload);
-    formData.append('stage', selectedStage!);
-    if (guestName.trim()) {
-      formData.append('guest_name', guestName.trim());
+    const { error: uploadError } = await supabase.storage
+      .from('wedding-media')
+      .upload(filePath, fileToUpload, {
+        contentType: fileToUpload.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new Error(uploadError.message || 'Erro ao enviar arquivo.');
     }
 
-    const xhr = new XMLHttpRequest();
+    setUploadProgress(75);
 
-    await new Promise<void>((resolve, reject) => {
-      xhr.upload.addEventListener('progress', (event) => {
-        if (event.lengthComputable) {
-          const progress = (event.loaded / event.total) * 100;
-          setCurrentFileIndex(index + 1);
-          setUploadProgress(progress);
-        }
-      });
+    const { data: urlData } = supabase.storage
+      .from('wedding-media')
+      .getPublicUrl(filePath);
 
-      xhr.addEventListener('load', () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve();
-        } else {
-          try {
-            const response = JSON.parse(xhr.responseText);
-            reject(new Error(response.error || 'Erro ao enviar.'));
-          } catch {
-            reject(new Error('Erro ao enviar.'));
-          }
-        }
-      });
-
-      xhr.addEventListener('error', () => reject(new Error('Erro de conexão.')));
-      xhr.addEventListener('abort', () => reject(new Error('Upload cancelado.')));
-
-      xhr.open('POST', '/api/upload');
-      xhr.send(formData);
+    const { error: dbError } = await supabase.from('media').insert({
+      stage: selectedStage,
+      guest_name: guestName.trim() || null,
+      media_type: mediaType,
+      file_path: filePath,
+      file_url: urlData.publicUrl,
+      size_bytes: fileToUpload.size,
+      original_filename: file.name,
     });
+
+    if (dbError) {
+      throw new Error(dbError.message || 'Erro ao salvar informações da mídia.');
+    }
 
     setUploadProgress(100);
     setCurrentFileIndex(Math.min(index + 1, totalFiles));
